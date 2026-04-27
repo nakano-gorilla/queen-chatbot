@@ -1,7 +1,6 @@
 import streamlit as st
 from google import genai
 import base64
-from pathlib import Path
 
 # ─────────────────────────────────────
 # API 키 설정
@@ -66,6 +65,58 @@ SYSTEM_PROMPT = (
 )
 
 # ─────────────────────────────────────
+# 언어별 티저 문구
+# ─────────────────────────────────────
+TEASER = {
+    "ko": (
+        '"거울아, 거울아. 이 세상에서 누가 제일 아름답니?"\n\n'
+        "그녀는 왕비였다. 그것이 그녀의 전부였다."
+    ),
+    "ja": (
+        '「鏡よ、鏡。この世で一番美しいのは誰？」\n\n'
+        "彼女は王妃だった。それが彼女のすべてだった。"
+    ),
+    "en": (
+        '"Mirror, mirror. Who is the fairest of them all?"\n\n'
+        "She was the Queen. That was all she was ever allowed to be."
+    ),
+}
+
+# ─────────────────────────────────────
+# 언어별 장면 설명
+# ─────────────────────────────────────
+SCENE = {
+    "ko": (
+        "**백설공주의 왕비. 그녀에게는 이름이 없다.**\n\n"
+        "정략결혼으로 말도 통하지 않는 나라에 시집온 소녀.\n"
+        "왕국에서는 왕비라는 역할만이 요구됐고,\n"
+        "본국에서는 외교 도구로만 여겨졌다.\n\n"
+        "단 한 번도 그냥 \"나\"로 존재한 적이 없는 사람.\n\n"
+        "당신은 오늘 그녀의 처소에 새로 배치된 시녀다.\n\n"
+        "――――――――――――――――――――\n\n"
+    ),
+    "ja": (
+        "**白雪姫の王妃。彼女には名前がない。**\n\n"
+        "言葉も通じない異国に嫁がされた少女。\n"
+        "王国では王妃という役割だけを求められ、\n"
+        "故国では外交の道具としてしか扱われなかった。\n\n"
+        "一度も、ただの「自分」として存在したことがない人。\n\n"
+        "あなたは今日、彼女の部屋に新しく配属された侍女だ。\n\n"
+        "――――――――――――――――――――\n\n"
+    ),
+    "en": (
+        "**The Queen from Snow White. She has no name.**\n\n"
+        "A girl sent to a foreign land through political marriage,\n"
+        "where no one spoke her language and no one knew her heart.\n"
+        "To the kingdom, she was only a Queen.\n"
+        "To her homeland, only a diplomatic tool.\n\n"
+        "She has never once been allowed to simply exist as herself.\n\n"
+        "You are a newly assigned lady-in-waiting to her chamber.\n\n"
+        "――――――――――――――――――――\n\n"
+    ),
+}
+
+# ─────────────────────────────────────
 # 언어별 첫 장면
 # ─────────────────────────────────────
 OPENING = {
@@ -98,6 +149,7 @@ CUSTOM_CSS = f"""
 
 .stApp {{
     background-color: #0d0a0e;
+    background-image: radial-gradient(ellipse at top, #1a1020 0%, #0d0a0e 60%);
 }}
 
 .main .block-container {{
@@ -105,7 +157,6 @@ CUSTOM_CSS = f"""
     padding-top: 0;
 }}
 
-/* 채팅 헤더 이미지 */
 .queen-header {{
     width: 100%;
     max-height: 220px;
@@ -116,7 +167,6 @@ CUSTOM_CSS = f"""
     margin-bottom: 0.5rem;
 }}
 
-/* 헤더 제목 영역 */
 .header-title {{
     text-align: center;
     padding: 0.5rem 0 1rem;
@@ -141,14 +191,25 @@ CUSTOM_CSS = f"""
     margin: 0;
 }}
 
-/* 말풍선 공통 */
+.scene-box {{
+    background-color: rgba(20, 12, 28, 0.8);
+    border-left: 2px solid #4a2d7a;
+    border-radius: 0 8px 8px 0;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 1rem;
+    font-family: 'IM Fell English', serif;
+    color: #8a7a9a;
+    font-size: 0.9rem;
+    line-height: 1.9;
+    font-style: italic;
+}}
+
 .stChatMessage {{
     background-color: transparent !important;
     border: none !important;
     padding: 0.3rem 0 !important;
 }}
 
-/* 왕비 말풍선 (왼쪽) */
 .stChatMessage[data-testid="chat-message-assistant"] {{
     background-color: transparent !important;
 }}
@@ -175,7 +236,6 @@ CUSTOM_CSS = f"""
     font-style: italic;
 }}
 
-/* 유저 말풍선 (오른쪽) */
 .stChatMessage[data-testid="chat-message-user"] {{
     background-color: transparent !important;
     flex-direction: row-reverse !important;
@@ -198,7 +258,6 @@ CUSTOM_CSS = f"""
     margin: 0 !important;
 }}
 
-/* 입력창 */
 .stChatInputContainer {{
     border-top: 1px solid #2a1e35 !important;
     padding-top: 0.8rem !important;
@@ -219,7 +278,6 @@ CUSTOM_CSS = f"""
     font-style: italic;
 }}
 
-/* 언어 선택 버튼 */
 .stButton button {{
     background-color: rgba(30, 20, 40, 0.8) !important;
     color: #c9a96e !important;
@@ -256,9 +314,9 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 # ─────────────────────────────────────
 if "lang" not in st.session_state:
     st.markdown(
-        f'<img src="data:image/jpg;base64,{queen_main}" '
+        f'<img src="data:image/jpeg;base64,{queen_main}" '
         f'style="width:100%; max-height:400px; object-fit:cover; '
-        f'object-position:top; display:block; margin-bottom:2rem;">',
+        f'object-position:top; display:block; margin-bottom:1.5rem;">',
         unsafe_allow_html=True
     )
     st.markdown(
@@ -267,33 +325,46 @@ if "lang" not in st.session_state:
         "letter-spacing:0.15em; font-size:2rem; "
         "text-shadow:0 0 30px rgba(201,169,110,0.3);'>"
         "👑 Queen's Chamber</h1>"
-        "<p style='font-family:IM Fell English,serif; color:#7a6a5a; "
-        "font-style:italic; font-size:0.9rem;'>"
-        "She has no name. She was only ever the Queen.</p>"
-        "<p style='font-family:IM Fell English,serif; color:#4a3d5a; "
-        "font-style:italic; font-size:0.85rem; margin-top:2rem;'>"
-        "Choose your language to enter her chamber.</p>"
         "</div>",
         unsafe_allow_html=True
     )
 
-    st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("🇰🇷  한국어", use_container_width=True):
             st.session_state.lang = "ko"
-            st.session_state.messages = [{"role": "assistant", "content": OPENING["ko"]}]
+            st.session_state.messages = [
+                {"role": "assistant", "content": SCENE["ko"] + OPENING["ko"]}
+            ]
             st.rerun()
     with col2:
         if st.button("🇯🇵  日本語", use_container_width=True):
             st.session_state.lang = "ja"
-            st.session_state.messages = [{"role": "assistant", "content": OPENING["ja"]}]
+            st.session_state.messages = [
+                {"role": "assistant", "content": SCENE["ja"] + OPENING["ja"]}
+            ]
             st.rerun()
     with col3:
         if st.button("🇺🇸  English", use_container_width=True):
             st.session_state.lang = "en"
-            st.session_state.messages = [{"role": "assistant", "content": OPENING["en"]}]
+            st.session_state.messages = [
+                {"role": "assistant", "content": SCENE["en"] + OPENING["en"]}
+            ]
             st.rerun()
+
+    # 언어별 티저 문구
+    st.markdown("<br>", unsafe_allow_html=True)
+    lang_preview = st.session_state.get("preview_lang", "ko")
+    st.markdown(
+        f"<div style='text-align:center; font-family:IM Fell English,serif; "
+        f"color:#7a6a5a; font-style:italic; font-size:0.9rem; "
+        f"line-height:1.8; margin-top:1rem;'>"
+        f"{TEASER['ko']}<br><br>"
+        f"{TEASER['ja']}<br><br>"
+        f"{TEASER['en']}"
+        f"</div>",
+        unsafe_allow_html=True
+    )
     st.stop()
 
 # ─────────────────────────────────────
@@ -305,13 +376,11 @@ placeholder = {
     "en": "Speak to the Queen...",
 }
 
-# 채팅 헤더 이미지
 st.markdown(
-    f'<img src="data:image/jpg;base64,{queen_chat}" class="queen-header">',
+    f'<img src="data:image/jpeg;base64,{queen_chat}" class="queen-header">',
     unsafe_allow_html=True
 )
 
-# 제목
 st.markdown(
     "<div class='header-title'>"
     "<h1>👑 Queen's Chamber</h1>"
@@ -320,13 +389,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 대화 기록 출력
 for message in st.session_state.messages:
     icon = "👑" if message["role"] == "assistant" else "🕯️"
     with st.chat_message(message["role"], avatar=icon):
         st.markdown(message["content"])
 
-# 유저 입력
 if prompt := st.chat_input(placeholder[st.session_state.lang]):
 
     st.session_state.messages.append({"role": "user", "content": prompt})
