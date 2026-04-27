@@ -6,7 +6,7 @@ from pathlib import Path
 # ─────────────────────────────────────
 # API 키 설정
 # ─────────────────────────────────────
-GEMINI_API_KEY = "AIzaSyBp-4n9mMw6EFxHE93wUSNNBp1eqJ9QYeQ"
+GEMINI_API_KEY = st.secrets["AIzaSyBp-4n9mMw6EFxHE93wUSNNBp1eqJ9QYeQ"]
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
