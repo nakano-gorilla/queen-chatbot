@@ -191,19 +191,6 @@ CUSTOM_CSS = f"""
     margin: 0;
 }}
 
-.scene-box {{
-    background-color: rgba(20, 12, 28, 0.8);
-    border-left: 2px solid #4a2d7a;
-    border-radius: 0 8px 8px 0;
-    padding: 1.2rem 1.4rem;
-    margin-bottom: 1rem;
-    font-family: 'IM Fell English', serif;
-    color: #8a7a9a;
-    font-size: 0.9rem;
-    line-height: 1.9;
-    font-style: italic;
-}}
-
 .stChatMessage {{
     background-color: transparent !important;
     border: none !important;
@@ -223,7 +210,8 @@ CUSTOM_CSS = f"""
     display: inline-block !important;
 }}
 
-.stChatMessage[data-testid="chat-message-assistant"] p {{
+.stChatMessage[data-testid="chat-message-assistant"] p,
+.stChatMessage[data-testid="chat-message-assistant"] span {{
     font-family: 'IM Fell English', serif;
     color: #d4c5b0 !important;
     font-size: 0.95rem;
@@ -251,11 +239,22 @@ CUSTOM_CSS = f"""
     float: right !important;
 }}
 
-.stChatMessage[data-testid="chat-message-user"] p {{
+.stChatMessage[data-testid="chat-message-user"] p,
+.stChatMessage[data-testid="chat-message-user"] span {{
     font-family: 'IM Fell English', serif;
     color: #c9a96e !important;
     font-size: 0.95rem;
     margin: 0 !important;
+}}
+
+/* 전체 텍스트 색상 강제 적용 */
+[data-testid="stChatMessageContent"] p,
+[data-testid="stChatMessageContent"] span {{
+    color: #d4c5b0 !important;
+}}
+
+[data-testid="stChatMessageContent"] p {{
+    color: #d4c5b0 !important;
 }}
 
 .stChatInputContainer {{
@@ -352,9 +351,7 @@ if "lang" not in st.session_state:
             ]
             st.rerun()
 
-    # 언어별 티저 문구
     st.markdown("<br>", unsafe_allow_html=True)
-    lang_preview = st.session_state.get("preview_lang", "ko")
     st.markdown(
         f"<div style='text-align:center; font-family:IM Fell English,serif; "
         f"color:#7a6a5a; font-style:italic; font-size:0.9rem; "
@@ -403,10 +400,16 @@ if prompt := st.chat_input(placeholder[st.session_state.lang]):
     with st.chat_message("assistant", avatar="👑"):
         with st.spinner("..."):
             try:
+                # 빈 메시지 제외한 대화 기록 변환
                 history = []
                 for msg in st.session_state.messages[1:-1]:
                     role = "user" if msg["role"] == "user" else "model"
-                    history.append({"role": role, "parts": [{"text": msg["content"]}]})
+                    content = msg["content"].strip()
+                    if content:
+                        history.append({
+                            "role": role,
+                            "parts": [{"text": content}]
+                        })
 
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
@@ -416,7 +419,9 @@ if prompt := st.chat_input(placeholder[st.session_state.lang]):
                         "temperature": 0.9,
                     }
                 )
-                reply = response.text
+
+                # None 방지
+                reply = response.text if response.text else "..."
 
             except Exception as e:
                 reply = f"오류가 발생했습니다: {str(e)}"
